@@ -1,5 +1,4 @@
 import java.awt.Font;
-import java.beans.PropertyChangeListener;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
@@ -15,9 +14,6 @@ import jxl.format.VerticalAlignment;
 import jxl.read.biff.BiffException;
 import jxl.write.*;
 import jxl.write.Number;
-import sun.awt.image.IntegerComponentRaster;
-
-import javax.management.monitor.Monitor;
 import javax.swing.*;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
@@ -49,14 +45,6 @@ public class Eavluator {
     private static WritableCellFormat expiredFormat;
     private static WritableCellFormat noneFormat;
     private static WritableCellFormat normalFormat;
-
-    private static JFrame mainFrame;
-    private static JButton generateTableB;
-    private static JButton generatePlotB;
-    private static JButton exitB;
-    private static JLabel dateLabel;
-    private static JTextField dateText;
-    private static JPanel datePanel;
 
     private static int count = 0;
     public static void main(String[] args){
@@ -101,6 +89,13 @@ public class Eavluator {
     }
 
     private static void createGUI(){
+        JFrame mainFrame;
+        JButton generateTableB;
+        JButton generatePlotB;
+        JButton exitB;
+        JLabel dateLabel;
+        JTextField dateText;
+        JPanel datePanel;
         mainFrame = new JFrame("Performance Evaluator Version 2.0");
         mainFrame.setBounds(400, 100, 500,350);
         mainFrame.setBackground( Color.LIGHT_GRAY);
@@ -189,7 +184,7 @@ public class Eavluator {
     private static void retainDataHelper(){
 
     }
-
+/*
     private static String getTodayDate(){
         Calendar myCalendar = Calendar.getInstance();
         Calendar myCalendar2 = Calendar.getInstance();
@@ -197,7 +192,7 @@ public class Eavluator {
         threeDaysBef = myFormat.format(myCalendar2.getTime());
         return myFormat.format(myCalendar.getTime());
     }
-
+*/
     private static Queue<Sheet> getSheetNum(Workbook wb){
         int sheet_size = wb.getNumberOfSheets();
         Queue<Sheet> results = new LinkedList();
@@ -221,6 +216,7 @@ public class Eavluator {
                 Sheet currDataSheet = dataSheets.poll();
                 WritableSheet currDataSheetW = wwb.getSheet(currDataSheet.getName());
                 currDataSheetW.insertColumn(remarkClnIdx);
+                currDataSheetW.setColumnView(remarkClnIdx, 19);
                 jxl.write.Label remarkTitle = new jxl.write.Label(remarkClnIdx, 0, "Remark");
                 currDataSheetW.addCell(remarkTitle);
                 int rowNums = currDataSheet.getRows();
@@ -328,16 +324,22 @@ public class Eavluator {
             WritableSheet sheet = outputFile.createSheet("Performance" + todayDate, 0);
             jxl.write.Label buyerLabel = new jxl.write.Label(0, 0, "Buyer", titleFormat);
             sheet.addCell(buyerLabel);
+            sheet.setColumnView(0, 15);
             jxl.write.Label goodLabel = new jxl.write.Label(1, 0, "Promise Date OK", titleFormat);
             sheet.addCell(goodLabel);
+            sheet.setColumnView(1, 16);
             jxl.write.Label expiredLabel = new jxl.write.Label(2, 0, "Promise Date Expired", titleFormat);
             sheet.addCell(expiredLabel);
+            sheet.setColumnView(2, 21);
             jxl.write.Label missedLabel = new jxl.write.Label(3, 0, "Promise Date Missed", titleFormat);
             sheet.addCell(missedLabel);
+            sheet.setColumnView(3, 20);
             jxl.write.Label totalLabel = new jxl.write.Label(4, 0, "Total", titleFormat);
             sheet.addCell(totalLabel);
+            sheet.setColumnView(4, 10);
             jxl.write.Label percentLabel = new jxl.write.Label(5, 0, "Performance Percent", titleFormat);
             sheet.addCell(percentLabel);
+            sheet.setColumnView(5, 20);
             int i;
             for(i = 0; i < buyerTracked.size(); i++){
                 Performance currPerformance = buyerPerformance[i];
