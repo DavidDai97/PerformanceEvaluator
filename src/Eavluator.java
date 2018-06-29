@@ -1,4 +1,5 @@
 import java.awt.Font;
+import java.beans.PropertyChangeListener;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
@@ -14,6 +15,7 @@ import jxl.format.VerticalAlignment;
 import jxl.read.biff.BiffException;
 import jxl.write.*;
 import jxl.write.Number;
+import sun.awt.image.IntegerComponentRaster;
 
 import javax.management.monitor.Monitor;
 import javax.swing.*;
@@ -50,29 +52,24 @@ public class Eavluator {
 
     private static JFrame mainFrame;
     private static JButton generateTableB;
-    private static JPanel generateTablePanel;
     private static JButton generatePlotB;
-    private static JPanel generatePlotPanel;
     private static JButton exitB;
-    private static JPanel exitPanel;
+    private static JLabel dateLabel;
+    private static JTextField dateText;
+    private static JPanel datePanel;
 
     private static int count = 0;
     public static void main(String[] args){
-        //Scanner userInputSC = new Scanner(System.in);
-        //String userInput = null;
-        //System.out.println("Please press ENTER to continue.");
-        //userInput = userInputSC.nextLine();
-        todayDate = getTodayDate();       // Uncomment this line when actually use the tool
         createGUI();
-        //todayDate = "20180628";
-        //threeDaysBef = "20180625";
-        /*String filePath = "../SourceFile/OpenPO" + todayDate + ".xls";
+    }
+
+    private static boolean generateTable(){
+        String filePath = "../SourceFile/OpenPO" + todayDate + ".xls";
         initializeFormat();
         File openPoData = new File(filePath);
         getBuyerPerformance(openPoData);
         outputData();
-        System.out.println("Done, Please press ENTER to exit the program.");*/
-        //userInput = userInputSC.nextLine();
+        return true;
     }
 
     private static void initializeFormat(){
@@ -105,21 +102,27 @@ public class Eavluator {
 
     private static void createGUI(){
         mainFrame = new JFrame("Performance Evaluator Version 2.0");
-        mainFrame.setBounds(400, 100, 500,300);
+        mainFrame.setBounds(400, 100, 500,350);
         mainFrame.setBackground( Color.LIGHT_GRAY);
         mainFrame.setResizable(true);
-        exitPanel = new JPanel();
-        generatePlotPanel = new JPanel();
-        generateTablePanel = new JPanel();
+        datePanel = new JPanel();
         exitB = new JButton("Exit!");
         generatePlotB = new JButton("Generate Plot");
         generateTableB = new JButton("Generate Table");
-        exitB.setBounds(50, 150, 400, 75);
+        dateLabel = new JLabel("Date (YYYYMMDD): ");
+        dateLabel.setFont(new Font("Arial", 1, 18));
+        dateText = new JTextField(10);
+        datePanel.add(dateLabel);
+        datePanel.add(dateText);
+        datePanel.setLayout(new GridLayout(1, 2));
+        datePanel.setBounds(50, 50, 400, 25);
+        mainFrame.add(datePanel);
+        exitB.setBounds(50, 200, 400, 75);
         exitB.setFont(new Font("Arial", 1, 30));
         exitB.setBackground(Color.RED);
-        generateTableB.setBounds(50, 50, 175, 75);
+        generateTableB.setBounds(50, 100, 175, 75);
         generateTableB.setFont(new Font("Arial", 1, 18));
-        generatePlotB.setBounds(275, 50, 175, 75);
+        generatePlotB.setBounds(275, 100, 175, 75);
         generatePlotB.setFont(new Font("Arial", 1, 18));
         mainFrame.add(generateTableB);
         mainFrame.add(generatePlotB);
@@ -133,7 +136,33 @@ public class Eavluator {
                 System.exit(0);
             }
         });
-        mainFrame.setVisible( true);
+        generateTableB.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                todayDate = dateText.getText();
+                if(todayDate.isEmpty()){
+                    JOptionPane.showMessageDialog(null,"Please enter date, format: YYYYMMDD",
+                            "Warning",JOptionPane.WARNING_MESSAGE);
+                }
+                else if(todayDate.length() != 8 ||
+                        (Integer.parseInt(todayDate.substring(0, 3)) > 2010 && Integer.parseInt(todayDate.substring(0, 3)) < 2015) ||
+                        (Integer.parseInt(todayDate.substring(4, 5)) > 12 && Integer.parseInt(todayDate.substring(4, 5)) < 1) ||
+                        Integer.parseInt(todayDate.substring(6, 7)) > 31 && Integer.parseInt(todayDate.substring(6, 7)) < 1){
+                    JOptionPane.showMessageDialog(null,"Date format wrong, format: YYYYMMDD",
+                            "Warning",JOptionPane.WARNING_MESSAGE);
+                }
+                else{
+                    threeDaysBef = String.valueOf(Long.parseLong(todayDate)-3);
+                    JOptionPane.showMessageDialog(null,"Generating Table","Progress",
+                            JOptionPane.WARNING_MESSAGE);
+                    while(!generateTable()){}
+                    JOptionPane.showMessageDialog(null,"Table generate successful","Progress",
+                            JOptionPane.WARNING_MESSAGE);
+                }
+            }
+        });
+        mainFrame.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
+        mainFrame.setVisible(true);
     }
 
     public static void retainData(){
