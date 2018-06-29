@@ -1,3 +1,4 @@
+import java.awt.Font;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
@@ -14,9 +15,13 @@ import jxl.read.biff.BiffException;
 import jxl.write.*;
 import jxl.write.Number;
 
+import javax.management.monitor.Monitor;
+import javax.swing.*;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.*;
+import java.awt.*;
+import java.awt.event.*;
 
 import static java.lang.System.exit;
 
@@ -43,6 +48,14 @@ public class Eavluator {
     private static WritableCellFormat noneFormat;
     private static WritableCellFormat normalFormat;
 
+    private static JFrame mainFrame;
+    private static JButton generateTableB;
+    private static JPanel generateTablePanel;
+    private static JButton generatePlotB;
+    private static JPanel generatePlotPanel;
+    private static JButton exitB;
+    private static JPanel exitPanel;
+
     private static int count = 0;
     public static void main(String[] args){
         //Scanner userInputSC = new Scanner(System.in);
@@ -50,18 +63,19 @@ public class Eavluator {
         //System.out.println("Please press ENTER to continue.");
         //userInput = userInputSC.nextLine();
         todayDate = getTodayDate();       // Uncomment this line when actually use the tool
+        createGUI();
         //todayDate = "20180628";
         //threeDaysBef = "20180625";
-        String filePath = "../SourceFile/OpenPO" + todayDate + ".xls";
+        /*String filePath = "../SourceFile/OpenPO" + todayDate + ".xls";
         initializeFormat();
         File openPoData = new File(filePath);
         getBuyerPerformance(openPoData);
         outputData();
-        System.out.println("Done, Please press ENTER to exit the program.");
+        System.out.println("Done, Please press ENTER to exit the program.");*/
         //userInput = userInputSC.nextLine();
     }
 
-    public static void initializeFormat(){
+    private static void initializeFormat(){
         try{
             titleFont = new WritableFont(WritableFont.ARIAL, 10, WritableFont.BOLD,false);
             titleFormat = new WritableCellFormat(titleFont);
@@ -89,6 +103,39 @@ public class Eavluator {
         }
     }
 
+    private static void createGUI(){
+        mainFrame = new JFrame("Performance Evaluator Version 2.0");
+        mainFrame.setBounds(400, 100, 500,300);
+        mainFrame.setBackground( Color.LIGHT_GRAY);
+        mainFrame.setResizable(true);
+        exitPanel = new JPanel();
+        generatePlotPanel = new JPanel();
+        generateTablePanel = new JPanel();
+        exitB = new JButton("Exit!");
+        generatePlotB = new JButton("Generate Plot");
+        generateTableB = new JButton("Generate Table");
+        exitB.setBounds(50, 150, 400, 75);
+        exitB.setFont(new Font("Arial", 1, 30));
+        exitB.setBackground(Color.RED);
+        generateTableB.setBounds(50, 50, 175, 75);
+        generateTableB.setFont(new Font("Arial", 1, 18));
+        generatePlotB.setBounds(275, 50, 175, 75);
+        generatePlotB.setFont(new Font("Arial", 1, 18));
+        mainFrame.add(generateTableB);
+        mainFrame.add(generatePlotB);
+        mainFrame.add(exitB);
+        mainFrame.setLayout(null);
+        mainFrame.addWindowListener(new MyWin());
+        exitB.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                System.out.println("Exit Program");
+                System.exit(0);
+            }
+        });
+        mainFrame.setVisible( true);
+    }
+
     public static void retainData(){
         String filePath = "../DataTracking/trackingData";
         File trackingData = new File(filePath);
@@ -109,6 +156,7 @@ public class Eavluator {
             }
         }
     }
+
     private static void retainDataHelper(){
 
     }
@@ -144,7 +192,7 @@ public class Eavluator {
                 Sheet currDataSheet = dataSheets.poll();
                 WritableSheet currDataSheetW = wwb.getSheet(currDataSheet.getName());
                 currDataSheetW.insertColumn(remarkClnIdx);
-                Label remarkTitle = new Label(remarkClnIdx, 0, "Remark");
+                jxl.write.Label remarkTitle = new jxl.write.Label(remarkClnIdx, 0, "Remark");
                 currDataSheetW.addCell(remarkTitle);
                 int rowNums = currDataSheet.getRows();
                 for(int i = 1; i < rowNums; i++){
@@ -180,7 +228,7 @@ public class Eavluator {
                     if(currBuyer.contains("Mark") && currPromiseDate.equals("19900101") && !currCurrency.equals("RMB")){
                         currBuyerPerformance.goodPromiseDateAdd();
                         totalPerformance.goodPromiseDateAdd();
-                        Label remarkkCell = new Label(remarkClnIdx, i, "Promise Date OK", goodFormat);
+                        jxl.write.Label remarkkCell = new jxl.write.Label(remarkClnIdx, i, "Promise Date OK", goodFormat);
                         currDataSheetW.addCell(remarkkCell);
                         continue;
                     }
@@ -189,33 +237,33 @@ public class Eavluator {
                             (currVendor.contains("必能信") && currVendor.contains("东莞"))){
                         currBuyerPerformance.goodPromiseDateAdd();
                         totalPerformance.goodPromiseDateAdd();
-                        Label remarkCell = new Label(remarkClnIdx, i, "Promise Date OK", goodFormat);
+                        jxl.write.Label remarkCell = new jxl.write.Label(remarkClnIdx, i, "Promise Date OK", goodFormat);
                         currDataSheetW.addCell(remarkCell);
                     }
                     else if(myFormat.parse(currPromiseDate).getTime() >= myFormat.parse(todayDate).getTime()){
                         currBuyerPerformance.goodPromiseDateAdd();
                         totalPerformance.goodPromiseDateAdd();
-                        Label remarkCell = new Label(remarkClnIdx, i, "Promise Date OK", goodFormat);
+                        jxl.write.Label remarkCell = new jxl.write.Label(remarkClnIdx, i, "Promise Date OK", goodFormat);
                         currDataSheetW.addCell(remarkCell);
                     }
                     else if(currPromiseDate.equals("19900101")){
                         if(myFormat.parse(currOrderDate).getTime() >= myFormat.parse(threeDaysBef).getTime()){
                             currBuyerPerformance.goodPromiseDateAdd();
                             totalPerformance.goodPromiseDateAdd();
-                            Label remarkCell = new Label(remarkClnIdx, i, "Promise Date OK", goodFormat);
+                            jxl.write.Label remarkCell = new jxl.write.Label(remarkClnIdx, i, "Promise Date OK", goodFormat);
                             currDataSheetW.addCell(remarkCell);
                         }
                         else{
                             currBuyerPerformance.nonePromiseDateAdd();
                             totalPerformance.nonePromiseDateAdd();
-                            Label remarkCell = new Label(remarkClnIdx, i, "Promise Date Missed", noneFormat);
+                            jxl.write.Label remarkCell = new jxl.write.Label(remarkClnIdx, i, "Promise Date Missed", noneFormat);
                             currDataSheetW.addCell(remarkCell);
                         }
                     }
                     else{
                         currBuyerPerformance.expiredPromiseDateAdd();
                         totalPerformance.expiredPromiseDateAdd();
-                        Label remarkCell = new Label(remarkClnIdx, i, "Promise Date Expired", expiredFormat);
+                        jxl.write.Label remarkCell = new jxl.write.Label(remarkClnIdx, i, "Promise Date Expired", expiredFormat);
                         currDataSheetW.addCell(remarkCell);
                     }
                 }
@@ -249,19 +297,19 @@ public class Eavluator {
         try{
             WritableWorkbook outputFile = Workbook.createWorkbook(new File(outputFilePath));
             WritableSheet sheet = outputFile.createSheet("Performance" + todayDate, 0);
-            Label buyerLabel = new Label(0, 0, "Buyer", titleFormat);
+            jxl.write.Label buyerLabel = new jxl.write.Label(0, 0, "Buyer", titleFormat);
             sheet.addCell(buyerLabel);
-            Label goodLabel = new Label(1, 0, "Promise Date OK", titleFormat);
+            jxl.write.Label goodLabel = new jxl.write.Label(1, 0, "Promise Date OK", titleFormat);
             sheet.addCell(goodLabel);
-            Label expiredLabel = new Label(2, 0, "Promise Date Expired", titleFormat);
+            jxl.write.Label expiredLabel = new jxl.write.Label(2, 0, "Promise Date Expired", titleFormat);
             sheet.addCell(expiredLabel);
-            Label missedLabel = new Label(3, 0, "Promise Date Missed", titleFormat);
+            jxl.write.Label missedLabel = new jxl.write.Label(3, 0, "Promise Date Missed", titleFormat);
             sheet.addCell(missedLabel);
-            Label totalLabel = new Label(4, 0, "Total", titleFormat);
+            jxl.write.Label totalLabel = new jxl.write.Label(4, 0, "Total", titleFormat);
             sheet.addCell(totalLabel);
-            Label percentLabel = new Label(5, 0, "Performance Percent", titleFormat);
+            jxl.write.Label percentLabel = new jxl.write.Label(5, 0, "Performance Percent", titleFormat);
             sheet.addCell(percentLabel);
-            int i = 0;
+            int i;
             for(i = 0; i < buyerTracked.size(); i++){
                 Performance currPerformance = buyerPerformance[i];
                 String currName = currPerformance.getName();
@@ -271,7 +319,7 @@ public class Eavluator {
                 int totalNum = goodNum+expiredNum+missedNum;
                 int goodPercent = (int) ((double)goodNum/(double)totalNum*100.0);
                 WritableCellFormat currFormat;
-                Label currBuyer = new Label(0, i+1, currName, normalFormat);
+                jxl.write.Label currBuyer = new jxl.write.Label(0, i+1, currName, normalFormat);
                 sheet.addCell(currBuyer);
                 currFormat = goodFormat;
                 if(goodNum != 0) {
@@ -300,10 +348,10 @@ public class Eavluator {
                 else{
                     currFormat = expiredFormat;
                 }
-                Label goodPromisePercent = new Label(5, i+1, ""+goodPercent+"%", currFormat);
+                jxl.write.Label goodPromisePercent = new jxl.write.Label(5, i+1, ""+goodPercent+"%", currFormat);
                 sheet.addCell(goodPromisePercent);
             }
-            Label buyerTotal = new Label(0, buyerTracked.size()+1, totalPerformance.getName(), titleFormat);
+            jxl.write.Label buyerTotal = new jxl.write.Label(0, buyerTracked.size()+1, totalPerformance.getName(), titleFormat);
             sheet.addCell(buyerTotal);
             Number goodTotal = new Number(1, buyerTracked.size()+1, totalPerformance.getGoodPromiseDate(), titleFormat);
             sheet.addCell(goodTotal);
@@ -315,7 +363,7 @@ public class Eavluator {
             Number totalTotal = new Number(4, buyerTracked.size()+1, totalNum, titleFormat);
             sheet.addCell(totalTotal);
             int totalPercent = (int) ((double)totalPerformance.getGoodPromiseDate()/(double)totalNum*100);
-            Label percentTotal = new Label(5, buyerTracked.size()+1, ""+totalPercent+"%", titleFormat);
+            jxl.write.Label percentTotal = new jxl.write.Label(5, buyerTracked.size()+1, ""+totalPercent+"%", titleFormat);
             sheet.addCell(percentTotal);
             outputFile.write();
             outputFile.close();
