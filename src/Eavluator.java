@@ -26,6 +26,7 @@ public class Eavluator {
     private final static int buyerClnIdx = 21;
     private final static int vendorClnIdx = 11;
     private final static int remarkClnIdx = 22;
+    private final static int currencyClnIdx = 13;
     private static SimpleDateFormat myFormat = new SimpleDateFormat("yyyyMMdd");
 
     private static Queue<String> buyerTracked = new LinkedList();
@@ -44,13 +45,20 @@ public class Eavluator {
 
     private static int count = 0;
     public static void main(String[] args){
+        //Scanner userInputSC = new Scanner(System.in);
+        //String userInput = null;
+        //System.out.println("Please press ENTER to continue.");
+        //userInput = userInputSC.nextLine();
         todayDate = getTodayDate();       // Uncomment this line when actually use the tool
+        //todayDate = "20180628";
+        //threeDaysBef = "20180625";
         String filePath = "../SourceFile/OpenPO" + todayDate + ".xls";
         initializeFormat();
         File openPoData = new File(filePath);
         getBuyerPerformance(openPoData);
         outputData();
-        System.out.println("Done");
+        System.out.println("Done, Please press ENTER to exit the program.");
+        //userInput = userInputSC.nextLine();
     }
 
     public static void initializeFormat(){
@@ -151,6 +159,7 @@ public class Eavluator {
                         currPromiseDate = myFormat.format(currPromiseDate_temp);
                     }
                     String currVendor = currDataSheet.getCell(vendorClnIdx, i).getContents().toUpperCase();
+                    String currCurrency = currDataSheet.getCell(currencyClnIdx, i).getContents().toUpperCase();
                     Performance currBuyerPerformance = null;
                     if(buyerTracked.contains(currBuyer)){
                         for(int j = 0; j < buyerTracked.size(); j++){
@@ -165,8 +174,19 @@ public class Eavluator {
                         currBuyerPerformance = new Performance(currBuyer);
                         buyerPerformance[buyerTracked.size()-1] = currBuyerPerformance;
                     }
+                    if(currVendor.contains("BUC")){
+                        continue;
+                    }
+                    if(currBuyer.contains("Mark") && currPromiseDate.equals("19900101") && !currCurrency.equals("RMB")){
+                        currBuyerPerformance.goodPromiseDateAdd();
+                        totalPerformance.goodPromiseDateAdd();
+                        Label remarkkCell = new Label(remarkClnIdx, i, "Promise Date OK", goodFormat);
+                        currDataSheetW.addCell(remarkkCell);
+                        continue;
+                    }
                     if(currVendor.contains("BRANSON") || currVendor.contains("EMERSON") || currPromiseDate.equals("20150909")
-                            || currVendor.contains("法埃龙") || currVendor.contains("惠恩")){
+                            || currVendor.contains("法埃龙") || currVendor.contains("惠恩") ||
+                            (currVendor.contains("必能信") && currVendor.contains("东莞"))){
                         currBuyerPerformance.goodPromiseDateAdd();
                         totalPerformance.goodPromiseDateAdd();
                         Label remarkCell = new Label(remarkClnIdx, i, "Promise Date OK", goodFormat);
