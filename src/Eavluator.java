@@ -18,18 +18,14 @@ import java.awt.event.*;
 import org.jfree.chart.ChartFactory;
 import org.jfree.chart.ChartUtilities;
 import org.jfree.chart.JFreeChart;
+import org.jfree.chart.axis.NumberAxis;
+import org.jfree.chart.axis.NumberTickUnit;
 import org.jfree.chart.plot.PlotOrientation;
 import org.jfree.data.category.DefaultCategoryDataset;
 import org.jfree.chart.plot.CategoryPlot;
 import org.jfree.chart.renderer.category.LineAndShapeRenderer;
 
 public class Eavluator {
-    private final static int orderDateClnIdx = 0;
-    private final static int promiseDateClnIdx = 23;
-    private final static int buyerClnIdx = 21;
-    private final static int vendorClnIdx = 11;
-    private final static int remarkClnIdx = 22;
-    private final static int currencyClnIdx = 13;
     private static SimpleDateFormat myFormat = new SimpleDateFormat("yyyyMMdd");
 
     private static Queue<String> buyerTracked = new LinkedList<>();
@@ -49,6 +45,7 @@ public class Eavluator {
 
     private static Queue<String> plotTrackingBuyers;
     private static PerformancePlotData[] dataPerformance = new PerformancePlotData[2];
+    private static Queue<String> dateQueue = new LinkedList<>();
 
     private static int count = 0;
     public static void main(String[] args){
@@ -85,31 +82,60 @@ public class Eavluator {
     }
 
     private static void generatePlot() throws Exception{
+        getAllDate();
         retainData();
         DefaultCategoryDataset dataSet = new DefaultCategoryDataset();
+        DefaultCategoryDataset goodNumSet = new DefaultCategoryDataset();
+        DefaultCategoryDataset expireNumSet = new DefaultCategoryDataset();
+        DefaultCategoryDataset missNumSet = new DefaultCategoryDataset();
         for(int i = 0; i < plotTrackingBuyers.size(); i++){
             PerformancePlotData currData = dataPerformance[i];
             int weekCnt = 1;
             while(!currData.isEmpty()){
                 Performance currPlotData = currData.poll();
-                dataSet.setValue(currPlotData.getGoodPercent(), currData.getName(), "Week " + String.valueOf(weekCnt));
+                dataSet.setValue(currPlotData.getGoodPercent()*100, currData.getName(), "Week " + String.valueOf(weekCnt));
+                goodNumSet.setValue(currPlotData.getGoodPromiseDate(), currData.getName(), "Week " + String.valueOf(weekCnt));
+                expireNumSet.setValue(currPlotData.getExpiredPromiseDate(), currData.getName(), "Week " + String.valueOf(weekCnt));
+                missNumSet.setValue(currPlotData.getNonePromiseDate(), currData.getName(), "Week " + String.valueOf(weekCnt));
                 weekCnt++;
             }
         }
-        JFreeChart chart = ChartFactory.createLineChart("Percent Change", "Week Num",
-                "Good Promise Percent", dataSet, PlotOrientation.VERTICAL, true, false, false);
-        CategoryPlot plot = (CategoryPlot) chart.getPlot();
+        JFreeChart percentChart = ChartFactory.createLineChart("Percent Change", "Week Num",
+                "Good Promise Percent, %", dataSet, PlotOrientation.VERTICAL, true, false, false);
+        setPlotFormat(percentChart, 5);
+        JFreeChart goodChart = ChartFactory.createLineChart("Good Promise Date Change", "Week Num",
+                "Good Promise Num", goodNumSet, PlotOrientation.VERTICAL, true, false, false);
+        //setPlotFormat(goodChart, 10);
+        JFreeChart expireChart = ChartFactory.createLineChart("Expired Promise Date Change", "Week Num",
+                "Expired Promise Num", expireNumSet, PlotOrientation.VERTICAL, true, false, false);
+        //setPlotFormat(expireChart, 10);
+        JFreeChart missChart = ChartFactory.createLineChart("Missed Promise Date Change", "Week Num",
+                "Missed Promise Num", missNumSet, PlotOrientation.VERTICAL, true, false, false);
+        //setPlotFormat(missChart, 10);
+        OutputStream os = new FileOutputStream("../PerformanceOutput/Plots/PercentChange.jpg");
+        OutputStream os1 = new FileOutputStream("../PerformanceOutput/Plots/GoodNumChange.jpg");
+        OutputStream os2 = new FileOutputStream("../PerformanceOutput/Plots/ExpireNumChange.jpg");
+        OutputStream os3 = new FileOutputStream("../PerformanceOutput/Plots/MissNumChange.jpg");
+        ChartUtilities.writeChartAsJPEG(os, percentChart, 800, 600);
+        ChartUtilities.writeChartAsJPEG(os1, goodChart, 800, 600);
+        ChartUtilities.writeChartAsJPEG(os2, expireChart, 800, 600);
+        ChartUtilities.writeChartAsJPEG(os3, missChart, 800, 600);
+        os.close();
+        os1.close();
+        os2.close();
+        os3.close();
+    }
+
+    private static void setPlotFormat(JFreeChart myChart, int yAxisInt){
+        CategoryPlot plot = (CategoryPlot) myChart.getPlot();
         plot.setBackgroundAlpha(0.5f);
         plot.setForegroundAlpha(0.5f);
         LineAndShapeRenderer renderer = (LineAndShapeRenderer)plot.getRenderer();
-        renderer.setBaseShapesVisible(true); // series 点（即数据点）可见
-        renderer.setBaseLinesVisible(true); // series 点（即数据点）间有连线可见
-        renderer.setUseSeriesOffset(true); // 设置偏移量
-        //renderer.setBaseItemLabelGenerator(new StandardCategoryItemLabelGenerator());
-        //renderer.setBaseItemLabelsVisible(true);
-        OutputStream os = new FileOutputStream("../PerformanceOutput/Plots/PercentChange.jpg");
-        ChartUtilities.writeChartAsJPEG(os, chart, 800, 600);
-        os.close();
+        renderer.setBaseShapesVisible(true);
+        renderer.setBaseLinesVisible(true);
+        renderer.setUseSeriesOffset(true);
+        NumberAxis numAxis = (NumberAxis) plot.getRangeAxis();
+        numAxis.setTickUnit(new NumberTickUnit(yAxisInt));
     }
 
     private static void initializeFormat(){
@@ -249,22 +275,38 @@ public class Eavluator {
         });
     }
 
+    private static void getAllDate(){
+        String currDate = startPlotDate;
+        while(true){
+            dateQueue.add(currDate);
+            currDate = dateAddition(currDate, 7);
+            if(currDate.equals(endPlotDate)){
+                dateQueue.add(currDate);
+                break;
+            }
+        }
+
+    }
+
     private static void retainData(){
 //        Date startDate = myFormat.parse(startPlotDate);
 //        Date endDate = myFormat.parse(endPlotDate);
 //        long startDateL = Long.parseLong(startPlotDate);
 //        long endDateL = Long.parseLong(endPlotDate);
-        String currDate = startPlotDate;
+        String currDate = dateQueue.poll();
         String filePathInit = "../PerformanceOutput/Performance";
         plotTrackingBuyers = new LinkedList<>();
-        while(!currDate.equals(dateAddition(endPlotDate, 7))){
+        while(true){
             String filePath = filePathInit + currDate + ".xls";
             File performanceData = new File(filePath);
             try {
                 InputStream is = new FileInputStream(performanceData.getAbsolutePath());
                 Workbook wb = Workbook.getWorkbook(is);
                 retainDataHelper(wb, currDate);
-                currDate = dateAddition(currDate, 7);
+                if(dateQueue.isEmpty()){
+                    break;
+                }
+                currDate = dateQueue.poll();
                 if(currDate.equals("")){
                     return;
                 }
@@ -272,6 +314,9 @@ public class Eavluator {
             catch (FileNotFoundException e){
                 System.out.println("File not found");
                 currDate = dateAddition(currDate, 1);
+                if(currDate.equals(dateQueue.peek())){
+                    currDate = dateQueue.poll();
+                }
             }
             catch (Exception e){
                 System.out.println("Other error: " + e.toString());
@@ -339,18 +384,30 @@ public class Eavluator {
     private static void getBuyerPerformance(File poData) throws Exception{
 //        try{
             InputStream is = new FileInputStream(poData.getAbsolutePath());
+            int orderDateClnIdx;
+            int promiseDateClnIdx;
+            int buyerClnIdx;
+            int vendorClnIdx;
+            int remarkClnIdx;
+            int currencyClnIdx;
             Workbook wb = Workbook.getWorkbook(is);
             WritableWorkbook wwb = Workbook.createWorkbook(poData, wb);
             Queue<Sheet> dataSheets = getSheetNum(wb);
             while(!dataSheets.isEmpty()){
                 Sheet currDataSheet = dataSheets.poll();
                 WritableSheet currDataSheetW = wwb.getSheet(currDataSheet.getName());
+                promiseDateClnIdx = currDataSheet.findCell("Promised Date").getColumn();
+                orderDateClnIdx = currDataSheet.findCell("Po Line Creation Date").getColumn();
+                buyerClnIdx = currDataSheet.findCell("Buyer").getColumn();
+                remarkClnIdx = buyerClnIdx + 1;
+                vendorClnIdx = currDataSheet.findCell("Vendor").getColumn();
+                currencyClnIdx = currDataSheet.findCell("Currency Code").getColumn();
                 currDataSheetW.insertColumn(remarkClnIdx);
                 currDataSheetW.setColumnView(remarkClnIdx, 19);
                 jxl.write.Label remarkTitle = new jxl.write.Label(remarkClnIdx, 0, "Remark");
                 currDataSheetW.addCell(remarkTitle);
-                int rowNums = currDataSheet.getRows();
-                for(int i = 1; i < rowNums; i++){
+                int rowNum = currDataSheet.getRows();
+                for(int i = 1; i < rowNum; i++){
                     String currBuyer = currDataSheet.getCell(buyerClnIdx, i).getContents();
                     DateCell currOrderDateCell = (DateCell) currDataSheet.getCell(orderDateClnIdx, i);
                     Date currOrderDate_temp = currOrderDateCell.getDate();
