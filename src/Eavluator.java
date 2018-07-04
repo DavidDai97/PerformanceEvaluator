@@ -11,6 +11,7 @@ import jxl.format.VerticalAlignment;
 import jxl.write.*;
 import jxl.write.Number;
 import javax.swing.*;
+import java.text.DecimalFormat;
 import java.text.SimpleDateFormat;
 import java.util.*;
 import java.awt.*;
@@ -21,6 +22,7 @@ import org.jfree.chart.ChartUtilities;
 import org.jfree.chart.JFreeChart;
 import org.jfree.chart.axis.NumberAxis;
 import org.jfree.chart.axis.NumberTickUnit;
+import org.jfree.chart.labels.StandardXYItemLabelGenerator;
 import org.jfree.chart.plot.PlotOrientation;
 import org.jfree.data.category.DefaultCategoryDataset;
 import org.jfree.chart.plot.CategoryPlot;
@@ -216,12 +218,12 @@ public class Eavluator {
                 }
                 jxl.write.Label goodPromisePercent = new jxl.write.Label(currCol, i+2, ""+goodPercent+"%", currFormat);
                 mySheet.addCell(goodPromisePercent);
-                dataSet.setValue(currPlotData.getGoodPercent()*100, currData.getName(), /*"Week " + */String.valueOf(calendar.get(Calendar.WEEK_OF_YEAR)));
+                dataSet.setValue(currPlotData.getGoodPercent(), currData.getName(), "W " + String.valueOf(calendar.get(Calendar.WEEK_OF_YEAR)));
             }
         }
         JFreeChart percentChart = ChartFactory.createLineChart("Delivery Performance", "",
                 "", dataSet, PlotOrientation.VERTICAL, true, false, false);
-        setPlotFormat(percentChart, 5);
+        setPlotFormat(percentChart, 0.05);
         OutputStream os = new FileOutputStream("../PerformanceOutput/Plots/PercentChange" + startPlotDate + "_" + endPlotDate + ".jpg");
         ChartUtilities.writeChartAsJPEG(os, percentChart, 1250, 750);
         os.close();
@@ -229,7 +231,7 @@ public class Eavluator {
         outputFile.close();
     }
 
-    private static void setPlotFormat(JFreeChart myChart, int yAxisInt){
+    private static void setPlotFormat(JFreeChart myChart, double yAxisInt){
         CategoryPlot plot = (CategoryPlot) myChart.getPlot();
         plot.setBackgroundAlpha(0.5f);
         plot.setForegroundAlpha(0.5f);
@@ -237,8 +239,12 @@ public class Eavluator {
         renderer.setBaseShapesVisible(true);
         renderer.setBaseLinesVisible(true);
         renderer.setUseSeriesOffset(true);
+//        renderer.setBaseItemLabelGenerator(new StandardXYItemLabelGenerator("{2}",NumberFormat.getPercentInstance(),
+//                                NumberFormat.getPercentInstance()));
         NumberAxis numAxis = (NumberAxis) plot.getRangeAxis();
         numAxis.setTickUnit(new NumberTickUnit(yAxisInt));
+        DecimalFormat percentFormat = new DecimalFormat("##.##%");
+        numAxis.setNumberFormatOverride(percentFormat);
     }
 
     private static void setBorders(boolean isSet) throws Exception{
