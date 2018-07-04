@@ -29,8 +29,8 @@ import org.jfree.chart.renderer.category.LineAndShapeRenderer;
 public class Eavluator {
     private static SimpleDateFormat myFormat = new SimpleDateFormat("yyyyMMdd");
 
-    private static Queue<String> buyerTracked = new LinkedList<>();
-    private static Performance[] buyerPerformance = new Performance[2];
+    private static Queue<String> buyerTracked;
+    private static Performance[] buyerPerformance;
     private static Performance totalPerformance = new Performance("Total");
     public static String todayDate;
     private static String threeDaysBef;
@@ -45,8 +45,11 @@ public class Eavluator {
     private static WritableCellFormat normalFormat;
 
     private static Queue<String> plotTrackingBuyers;
-    private static PerformancePlotData[] dataPerformance = new PerformancePlotData[2];
-    private static Queue<String> dateQueue = new LinkedList<>();
+    private static Queue<String> plotTrackingDate;
+    private static PerformancePlotData[] dataPerformance;
+    private static Queue<String> dateQueue;
+    private static Queue<String> datePlotQueue;
+    private static String[] dateArr;
 
     private static int count = 0;
 
@@ -60,6 +63,8 @@ public class Eavluator {
         copyFile("../SourceFiles/OpenPO" + todayDate + ".xls", "../ProcessedFiles/OpenPO" + todayDate + ".xls");
         String filePath = "../ProcessedFiles/OpenPO" + todayDate + ".xls";
         File openPoData = new File(filePath);
+        buyerTracked = new LinkedList<>();
+        buyerPerformance = new Performance[2];
         initializeFormat();
         setBorders(false);
         getBuyerPerformance(openPoData);
@@ -96,7 +101,19 @@ public class Eavluator {
         return myFormat.format(dateToCal);
     }
 
+    private static int findIdx(String obj){
+        for(int i = 0; i < dateArr.length;i++){
+            if(obj.equals(dateArr[i])){
+                return i;
+            }
+        }
+        return -1;
+    }
+
     public static void generatePlot() throws Exception{
+        dateQueue = new LinkedList<>();
+        datePlotQueue = new LinkedList<>();
+         dataPerformance = new PerformancePlotData[2];
         initializeFormat();
         setBorders(true);
         getAllDate();
@@ -110,27 +127,36 @@ public class Eavluator {
         mySheet.setColumnView(0, 15);
         Calendar calendar = Calendar.getInstance();
         calendar.setFirstDayOfWeek(Calendar.SUNDAY);
+        int count = 0;
+        while(!plotTrackingDate.isEmpty()){
+            String currDate = plotTrackingDate.poll();
+            Date currWeek = myFormat.parse(currDate);
+            calendar.setTime(currWeek);
+            jxl.write.Label weekLabel = new jxl.write.Label((count*6+1), 0, "Week " + String.valueOf(calendar.get(Calendar.WEEK_OF_YEAR)));
+            mySheet.addCell(weekLabel);
+            datePlotQueue.add(String.valueOf(calendar.get(Calendar.WEEK_OF_YEAR)));
+            jxl.write.Label day = new jxl.write.Label(count*6+2, 0, "Day " + currDate);
+            mySheet.addCell(day);
+            count++;
+        }
+        dateArr = datePlotQueue.toArray(new String[0]);
         for(int i = 0; i < plotTrackingBuyers.size(); i++){
             PerformancePlotData currData = dataPerformance[i];
             jxl.write.Label currBuyer = new jxl.write.Label(0, i+2, currData.getName(), normalFormat);
             mySheet.addCell(currBuyer);
             SheetSettings sheetSettings =  mySheet.getSettings();
             sheetSettings.setHorizontalFreeze(1);
-            int currCol = 1;
             while(!currData.isEmpty()){
                 Performance currPlotData = currData.poll();
                 Date currWeek = myFormat.parse(currPlotData.getDate());
                 calendar.setTime(currWeek);
+                int currCol = findIdx(String.valueOf(calendar.get(Calendar.WEEK_OF_YEAR)))*6+1;
                 WritableCellFormat currFormat;
                 int goodNum = currPlotData.getGoodPromiseDate();
                 int expiredNum = currPlotData.getExpiredPromiseDate();
                 int missedNum = currPlotData.getNonePromiseDate();
                 int totalNum = goodNum + expiredNum + missedNum;
                 int goodPercent = (int) (currPlotData.getGoodPercent()*100);
-                jxl.write.Label weekLabel = new jxl.write.Label(currCol, 0, "Week " + String.valueOf(calendar.get(Calendar.WEEK_OF_YEAR)));
-                mySheet.addCell(weekLabel);
-                jxl.write.Label day = new jxl.write.Label(currCol+1, 0, "Day " + currPlotData.getDate());
-                mySheet.addCell(day);
                 jxl.write.Label goodLabel = new jxl.write.Label(currCol, 1, "Promise Date OK", titleFormat);
                 mySheet.addCell(goodLabel);
                 mySheet.setColumnView(currCol, 16);
@@ -190,7 +216,6 @@ public class Eavluator {
                 }
                 jxl.write.Label goodPromisePercent = new jxl.write.Label(currCol, i+2, ""+goodPercent+"%", currFormat);
                 mySheet.addCell(goodPromisePercent);
-                currCol += 2;
                 dataSet.setValue(currPlotData.getGoodPercent()*100, currData.getName(), /*"Week " + */String.valueOf(calendar.get(Calendar.WEEK_OF_YEAR)));
             }
         }
@@ -405,12 +430,14 @@ public class Eavluator {
         String currDate = dateQueue.poll();
         String filePathInit = "../PerformanceOutput/Performance";
         plotTrackingBuyers = new LinkedList<>();
+        plotTrackingDate = new LinkedList<>();
         while(Long.parseLong(currDate) <= Long.parseLong(endPlotDate)){
             String filePath = filePathInit + currDate + ".xls";
             File performanceData = new File(filePath);
             try {
                 InputStream is = new FileInputStream(performanceData.getAbsolutePath());
                 Workbook wb = Workbook.getWorkbook(is);
+                plotTrackingDate.add(currDate);
                 retainDataHelper(wb, currDate);
                 if(dateQueue.isEmpty()){
                     return;
