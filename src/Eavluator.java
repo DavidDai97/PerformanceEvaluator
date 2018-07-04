@@ -3,6 +3,7 @@ import java.io.*;
 
 import jxl.DateCell;
 import jxl.Sheet;
+import jxl.SheetSettings;
 import jxl.Workbook;
 import jxl.format.Alignment;
 import jxl.format.Colour;
@@ -49,17 +50,30 @@ public class Eavluator {
 
     private static int count = 0;
     public static void main(String[] args){
-        //generatePlot();
         actualTodayDate = getTodayDate();
+        initializeFormat();
         createGUI();
     }
 
     private static void generateTable() throws Exception{
-        String filePath = "../SourceFile/OpenPO" + todayDate + ".xls";
-        initializeFormat();
+        copyFile("../SourceFiles/OpenPO" + todayDate + ".xls", "../ProcessedFiles/OpenPO" + todayDate + ".xls");
+        String filePath = "../ProcessedFiles/OpenPO" + todayDate + ".xls";
         File openPoData = new File(filePath);
+        initializeFormat();
+        setBorders(false);
         getBuyerPerformance(openPoData);
         outputData();
+    }
+
+    private static void copyFile(String oldPath, String newPath) throws IOException {
+        File oldFile = new File(oldPath);
+        File file = new File(newPath);
+        FileInputStream in = new FileInputStream(oldFile);
+        FileOutputStream out = new FileOutputStream(file);
+        byte[] buffer=new byte[2097152];
+        while((in.read(buffer)) != -1){
+            out.write(buffer);
+        }
     }
 
     private static String getTodayDate(){
@@ -82,48 +96,111 @@ public class Eavluator {
     }
 
     private static void generatePlot() throws Exception{
+        initializeFormat();
+        setBorders(true);
         getAllDate();
         retainData();
         DefaultCategoryDataset dataSet = new DefaultCategoryDataset();
-        DefaultCategoryDataset goodNumSet = new DefaultCategoryDataset();
-        DefaultCategoryDataset expireNumSet = new DefaultCategoryDataset();
-        DefaultCategoryDataset missNumSet = new DefaultCategoryDataset();
+        String outputFilePath = "../PerformanceOutput/Plots/Comparison" + startPlotDate + "_" + endPlotDate + ".xls";
+        WritableWorkbook outputFile = Workbook.createWorkbook(new File(outputFilePath));
+        WritableSheet mySheet = outputFile.createSheet("PerformanceComparison", 0);
+        jxl.write.Label buyerLabel = new jxl.write.Label(0, 1, "Buyer", titleFormat);
+        mySheet.addCell(buyerLabel);
+        mySheet.setColumnView(0, 15);
+        Calendar calendar = Calendar.getInstance();
+        calendar.setFirstDayOfWeek(Calendar.SUNDAY);
         for(int i = 0; i < plotTrackingBuyers.size(); i++){
             PerformancePlotData currData = dataPerformance[i];
-            int weekCnt = 1;
+            jxl.write.Label currBuyer = new jxl.write.Label(0, i+2, currData.getName(), normalFormat);
+            mySheet.addCell(currBuyer);
+            SheetSettings sheetSettings =  mySheet.getSettings();
+            sheetSettings.setHorizontalFreeze(1);
+            int currCol = 1;
             while(!currData.isEmpty()){
                 Performance currPlotData = currData.poll();
-                dataSet.setValue(currPlotData.getGoodPercent()*100, currData.getName(), "Week " + String.valueOf(weekCnt));
-                goodNumSet.setValue(currPlotData.getGoodPromiseDate(), currData.getName(), "Week " + String.valueOf(weekCnt));
-                expireNumSet.setValue(currPlotData.getExpiredPromiseDate(), currData.getName(), "Week " + String.valueOf(weekCnt));
-                missNumSet.setValue(currPlotData.getNonePromiseDate(), currData.getName(), "Week " + String.valueOf(weekCnt));
-                weekCnt++;
+                Date currWeek = myFormat.parse(currPlotData.getDate());
+                calendar.setTime(currWeek);
+                WritableCellFormat currFormat;
+                int goodNum = currPlotData.getGoodPromiseDate();
+                int expiredNum = currPlotData.getExpiredPromiseDate();
+                int missedNum = currPlotData.getNonePromiseDate();
+                int totalNum = goodNum + expiredNum + missedNum;
+                int goodPercent = (int) (currPlotData.getGoodPercent()*100);
+                jxl.write.Label weekLabel = new jxl.write.Label(currCol, 0, "Week " + String.valueOf(calendar.get(Calendar.WEEK_OF_YEAR)));
+                mySheet.addCell(weekLabel);
+                jxl.write.Label day = new jxl.write.Label(currCol+1, 0, "Day " + currPlotData.getDate());
+                mySheet.addCell(day);
+                jxl.write.Label goodLabel = new jxl.write.Label(currCol, 1, "Promise Date OK", titleFormat);
+                mySheet.addCell(goodLabel);
+                mySheet.setColumnView(currCol, 16);
+                currFormat = normalFormat;
+                if(goodNum != 0) {
+                    Number goodPromise = new Number(currCol, i+2, goodNum, currFormat);
+                    mySheet.addCell(goodPromise);
+                }
+                else{
+                    jxl.write.Label emptyLabel = new jxl.write.Label(currCol, i+2, "", currFormat);
+                    mySheet.addCell(emptyLabel);
+                }
+                currCol++;
+                jxl.write.Label expiredLabel = new jxl.write.Label(currCol, 1, "Promise Date Expired", titleFormat);
+                mySheet.addCell(expiredLabel);
+                mySheet.setColumnView(currCol, 21);
+                currFormat = expiredFormat;
+                if(expiredNum != 0) {
+                    Number expiredPromise = new Number(currCol, i + 2, expiredNum, currFormat);
+                    mySheet.addCell(expiredPromise);
+                }
+                else{
+                    jxl.write.Label emptyLabel = new jxl.write.Label(currCol, i+2, "", currFormat);
+                    mySheet.addCell(emptyLabel);
+                }
+                currCol++;
+                jxl.write.Label missedLabel = new jxl.write.Label(currCol, 1, "Promise Date Missed", titleFormat);
+                mySheet.addCell(missedLabel);
+                mySheet.setColumnView(currCol, 20);
+                currFormat = noneFormat;
+                if(missedNum != 0) {
+                    Number missedPromise = new Number(currCol, i + 2, missedNum, currFormat);
+                    mySheet.addCell(missedPromise);
+                }
+                else{
+                    jxl.write.Label emptyLabel = new jxl.write.Label(currCol, i+2, "", currFormat);
+                    mySheet.addCell(emptyLabel);
+                }
+                currCol++;
+                jxl.write.Label totalLabel = new jxl.write.Label(currCol, 1, "Total", titleFormat);
+                mySheet.addCell(totalLabel);
+                mySheet.setColumnView(currCol, 10);
+                Number totalPromise = new Number(currCol, i+2, totalNum, normalFormat);
+                mySheet.addCell(totalPromise);
+                currCol++;
+                jxl.write.Label percentLabel = new jxl.write.Label(currCol, 1, "Performance Percent", titleFormat);
+                mySheet.addCell(percentLabel);
+                mySheet.setColumnView(currCol, 20);
+                if(goodPercent > 80){
+                    currFormat = normalFormat;
+                }
+                else if(goodPercent > 60){
+                    currFormat = noneFormat;
+                }
+                else{
+                    currFormat = expiredFormat;
+                }
+                jxl.write.Label goodPromisePercent = new jxl.write.Label(currCol, i+2, ""+goodPercent+"%", currFormat);
+                mySheet.addCell(goodPromisePercent);
+                currCol += 2;
+                dataSet.setValue(currPlotData.getGoodPercent()*100, currData.getName(), /*"Week " + */String.valueOf(calendar.get(Calendar.WEEK_OF_YEAR)));
             }
         }
-        JFreeChart percentChart = ChartFactory.createLineChart("Percent Change", "Week Num",
-                "Good Promise Percent, %", dataSet, PlotOrientation.VERTICAL, true, false, false);
+        JFreeChart percentChart = ChartFactory.createLineChart("Delivery Performance", "",
+                "", dataSet, PlotOrientation.VERTICAL, true, false, false);
         setPlotFormat(percentChart, 5);
-        JFreeChart goodChart = ChartFactory.createLineChart("Good Promise Date Change", "Week Num",
-                "Good Promise Num", goodNumSet, PlotOrientation.VERTICAL, true, false, false);
-        //setPlotFormat(goodChart, 10);
-        JFreeChart expireChart = ChartFactory.createLineChart("Expired Promise Date Change", "Week Num",
-                "Expired Promise Num", expireNumSet, PlotOrientation.VERTICAL, true, false, false);
-        //setPlotFormat(expireChart, 10);
-        JFreeChart missChart = ChartFactory.createLineChart("Missed Promise Date Change", "Week Num",
-                "Missed Promise Num", missNumSet, PlotOrientation.VERTICAL, true, false, false);
-        //setPlotFormat(missChart, 10);
-        OutputStream os = new FileOutputStream("../PerformanceOutput/Plots/PercentChange.jpg");
-        OutputStream os1 = new FileOutputStream("../PerformanceOutput/Plots/GoodNumChange.jpg");
-        OutputStream os2 = new FileOutputStream("../PerformanceOutput/Plots/ExpireNumChange.jpg");
-        OutputStream os3 = new FileOutputStream("../PerformanceOutput/Plots/MissNumChange.jpg");
-        ChartUtilities.writeChartAsJPEG(os, percentChart, 800, 600);
-        ChartUtilities.writeChartAsJPEG(os1, goodChart, 800, 600);
-        ChartUtilities.writeChartAsJPEG(os2, expireChart, 800, 600);
-        ChartUtilities.writeChartAsJPEG(os3, missChart, 800, 600);
+        OutputStream os = new FileOutputStream("../PerformanceOutput/Plots/PercentChange" + startPlotDate + "_" + endPlotDate + ".jpg");
+        ChartUtilities.writeChartAsJPEG(os, percentChart, 1250, 750);
         os.close();
-        os1.close();
-        os2.close();
-        os3.close();
+        outputFile.write();
+        outputFile.close();
     }
 
     private static void setPlotFormat(JFreeChart myChart, int yAxisInt){
@@ -136,6 +213,23 @@ public class Eavluator {
         renderer.setUseSeriesOffset(true);
         NumberAxis numAxis = (NumberAxis) plot.getRangeAxis();
         numAxis.setTickUnit(new NumberTickUnit(yAxisInt));
+    }
+
+    private static void setBorders(boolean isSet) throws Exception{
+        if(isSet) {
+            titleFormat.setBorder(jxl.format.Border.ALL, jxl.format.BorderLineStyle.THIN);
+            normalFormat.setBorder(jxl.format.Border.ALL, jxl.format.BorderLineStyle.THIN);
+            goodFormat.setBorder(jxl.format.Border.ALL, jxl.format.BorderLineStyle.THIN);
+            expiredFormat.setBorder(jxl.format.Border.ALL, jxl.format.BorderLineStyle.THIN);
+            noneFormat.setBorder(jxl.format.Border.ALL, jxl.format.BorderLineStyle.THIN);
+        }
+        else{
+            titleFormat.setBorder(jxl.format.Border.NONE, jxl.format.BorderLineStyle.THIN);
+            normalFormat.setBorder(jxl.format.Border.NONE, jxl.format.BorderLineStyle.THIN);
+            goodFormat.setBorder(jxl.format.Border.NONE, jxl.format.BorderLineStyle.THIN);
+            expiredFormat.setBorder(jxl.format.Border.NONE, jxl.format.BorderLineStyle.THIN);
+            noneFormat.setBorder(jxl.format.Border.NONE, jxl.format.BorderLineStyle.THIN);
+        }
     }
 
     private static void initializeFormat(){
@@ -223,6 +317,11 @@ public class Eavluator {
                     JOptionPane.showMessageDialog(null,"Please enter date, format: YYYYMMDD",
                             "Warning",JOptionPane.WARNING_MESSAGE);
                 }
+                else if(todayDate.charAt(0) == '%'){
+                    startMultipleGeneration(todayDate.substring(1, 9), todayDate.substring(10));
+                    JOptionPane.showMessageDialog(null,"Table generated successfully","Progress",
+                            JOptionPane.WARNING_MESSAGE);
+                }
                 else if(todayDate.length() != 8 ||
                         (Integer.parseInt(todayDate.substring(0, 3)) > 2010 && Integer.parseInt(todayDate.substring(0, 3)) < 2015) ||
                         (Integer.parseInt(todayDate.substring(4, 5)) > 12 && Integer.parseInt(todayDate.substring(4, 5)) < 1) ||
@@ -234,13 +333,13 @@ public class Eavluator {
                     try {
                         threeDaysBef = dateAddition(todayDate, -3);
                         generateTable();
+                        JOptionPane.showMessageDialog(null,"Table generated successfully","Progress",
+                                JOptionPane.WARNING_MESSAGE);
                     }
                     catch (Exception e1){
                         JOptionPane.showMessageDialog(null,"Date format wrong, format: YYYYMMDD or file not found",
                                 "Warning",JOptionPane.WARNING_MESSAGE);
                     }
-                    JOptionPane.showMessageDialog(null,"Table generated successfully","Progress",
-                            JOptionPane.WARNING_MESSAGE);
                 }
             }
         });
@@ -267,12 +366,29 @@ public class Eavluator {
                 }
                 catch (Exception el){
                     System.out.println("Error: " + el);
-                    JOptionPane.showMessageDialog(null,"Unknown Error appears. " +
-                                    "Please ensure all files existed in the required folder, and remain closed when the program is running. Please run the program again.","Progress",
+                    JOptionPane.showMessageDialog(null,"Error: "+ el +
+                                    "\nPlease ensure all files existed in the required folder, and remain closed when the program is running. Please run the program again.","Progress",
                             JOptionPane.WARNING_MESSAGE);
                 }
             }
         });
+    }
+
+    private static void startMultipleGeneration(String startDate, String endDate){
+        todayDate = startDate;
+        while(!todayDate.equals(dateAddition(endDate, 1))){
+            try {
+                threeDaysBef = dateAddition(todayDate, -3);
+                generateTable();
+                buyerTracked = new LinkedList<>();
+                buyerPerformance = new Performance[2];
+                totalPerformance = new Performance("Total");
+                todayDate = dateAddition(todayDate, 1);
+            }
+            catch (Exception e){
+                todayDate = dateAddition(todayDate, 1);
+            }
+        }
     }
 
     private static void getAllDate(){
@@ -296,7 +412,7 @@ public class Eavluator {
         String currDate = dateQueue.poll();
         String filePathInit = "../PerformanceOutput/Performance";
         plotTrackingBuyers = new LinkedList<>();
-        while(true){
+        while(Long.parseLong(currDate) <= Long.parseLong(endPlotDate)){
             String filePath = filePathInit + currDate + ".xls";
             File performanceData = new File(filePath);
             try {
@@ -304,7 +420,7 @@ public class Eavluator {
                 Workbook wb = Workbook.getWorkbook(is);
                 retainDataHelper(wb, currDate);
                 if(dateQueue.isEmpty()){
-                    break;
+                    return;
                 }
                 currDate = dateQueue.poll();
                 if(currDate.equals("")){
@@ -313,6 +429,7 @@ public class Eavluator {
             }
             catch (FileNotFoundException e){
                 System.out.println("File not found");
+                System.out.println(currDate);
                 currDate = dateAddition(currDate, 1);
                 if(currDate.equals(dateQueue.peek())){
                     currDate = dateQueue.poll();
@@ -382,73 +499,89 @@ public class Eavluator {
     }
 
     private static void getBuyerPerformance(File poData) throws Exception{
-//        try{
-            InputStream is = new FileInputStream(poData.getAbsolutePath());
-            int orderDateClnIdx;
-            int promiseDateClnIdx;
-            int buyerClnIdx;
-            int vendorClnIdx;
-            int remarkClnIdx;
-            int currencyClnIdx;
-            Workbook wb = Workbook.getWorkbook(is);
-            WritableWorkbook wwb = Workbook.createWorkbook(poData, wb);
-            Queue<Sheet> dataSheets = getSheetNum(wb);
-            while(!dataSheets.isEmpty()){
-                Sheet currDataSheet = dataSheets.poll();
-                WritableSheet currDataSheetW = wwb.getSheet(currDataSheet.getName());
-                promiseDateClnIdx = currDataSheet.findCell("Promised Date").getColumn();
-                orderDateClnIdx = currDataSheet.findCell("Po Line Creation Date").getColumn();
-                buyerClnIdx = currDataSheet.findCell("Buyer").getColumn();
-                remarkClnIdx = buyerClnIdx + 1;
-                vendorClnIdx = currDataSheet.findCell("Vendor").getColumn();
-                currencyClnIdx = currDataSheet.findCell("Currency Code").getColumn();
-                currDataSheetW.insertColumn(remarkClnIdx);
-                currDataSheetW.setColumnView(remarkClnIdx, 19);
-                jxl.write.Label remarkTitle = new jxl.write.Label(remarkClnIdx, 0, "Remark");
-                currDataSheetW.addCell(remarkTitle);
-                int rowNum = currDataSheet.getRows();
-                for(int i = 1; i < rowNum; i++){
-                    String currBuyer = currDataSheet.getCell(buyerClnIdx, i).getContents();
-                    DateCell currOrderDateCell = (DateCell) currDataSheet.getCell(orderDateClnIdx, i);
-                    Date currOrderDate_temp = currOrderDateCell.getDate();
-                    String currOrderDate = myFormat.format(currOrderDate_temp);
-                    String currPromiseDate = "19900101";
-                    if(!currDataSheet.getCell(promiseDateClnIdx, i).getContents().equalsIgnoreCase("")){
-                        DateCell currPromiseDateCell = (DateCell) currDataSheet.getCell(promiseDateClnIdx, i);
-                        Date currPromiseDate_temp = new Date(currPromiseDateCell.getDate().getTime()-8*60*60*1000L);
-                        currPromiseDate = myFormat.format(currPromiseDate_temp);
-                    }
-                    String currVendor = currDataSheet.getCell(vendorClnIdx, i).getContents().toUpperCase();
-                    String currCurrency = currDataSheet.getCell(currencyClnIdx, i).getContents().toUpperCase();
-                    Performance currBuyerPerformance = null;
-                    if(buyerTracked.contains(currBuyer)){
-                        for(int j = 0; j < buyerTracked.size(); j++){
-                            if(buyerPerformance[j].isThisBuyer(currBuyer)){
-                                currBuyerPerformance = buyerPerformance[j];
-                            }
+        InputStream is = new FileInputStream(poData.getAbsolutePath());
+        int orderDateClnIdx;
+        int promiseDateClnIdx;
+        int buyerClnIdx;
+        int vendorClnIdx;
+        int remarkClnIdx;
+        int currencyClnIdx;
+        Workbook wb = Workbook.getWorkbook(is);
+        WritableWorkbook wwb = Workbook.createWorkbook(poData, wb);
+        Queue<Sheet> dataSheets = getSheetNum(wb);
+        while(!dataSheets.isEmpty()){
+            Sheet currDataSheet = dataSheets.poll();
+            WritableSheet currDataSheetW = wwb.getSheet(currDataSheet.getName());
+            promiseDateClnIdx = currDataSheet.findCell("Promised Date").getColumn();
+            orderDateClnIdx = currDataSheet.findCell("Po Line Creation Date").getColumn();
+            buyerClnIdx = currDataSheet.findCell("Buyer").getColumn();
+            remarkClnIdx = buyerClnIdx + 1;
+            vendorClnIdx = currDataSheet.findCell("Vendor").getColumn();
+            currencyClnIdx = currDataSheet.findCell("Currency Code").getColumn();
+            currDataSheetW.insertColumn(remarkClnIdx);
+            currDataSheetW.setColumnView(remarkClnIdx, 19);
+            jxl.write.Label remarkTitle = new jxl.write.Label(remarkClnIdx, 0, "Remark");
+            currDataSheetW.addCell(remarkTitle);
+            int rowNum = currDataSheet.getRows();
+            for(int i = 1; i < rowNum; i++){
+                String currBuyer = currDataSheet.getCell(buyerClnIdx, i).getContents();
+                DateCell currOrderDateCell = (DateCell) currDataSheet.getCell(orderDateClnIdx, i);
+                Date currOrderDate_temp = currOrderDateCell.getDate();
+                String currOrderDate = myFormat.format(currOrderDate_temp);
+                String currPromiseDate = "19900101";
+                if(!currDataSheet.getCell(promiseDateClnIdx, i).getContents().equalsIgnoreCase("")){
+                    DateCell currPromiseDateCell = (DateCell) currDataSheet.getCell(promiseDateClnIdx, i);
+                    Date currPromiseDate_temp = new Date(currPromiseDateCell.getDate().getTime()-8*60*60*1000L);
+                    currPromiseDate = myFormat.format(currPromiseDate_temp);
+                }
+                String currVendor = currDataSheet.getCell(vendorClnIdx, i).getContents().toUpperCase();
+                String currCurrency = currDataSheet.getCell(currencyClnIdx, i).getContents().toUpperCase();
+                Performance currBuyerPerformance = null;
+                if(buyerTracked.contains(currBuyer)){
+                    for(int j = 0; j < buyerTracked.size(); j++){
+                        if(buyerPerformance[j].isThisBuyer(currBuyer)){
+                            currBuyerPerformance = buyerPerformance[j];
                         }
                     }
-                    else{
-                        copyData();
-                        buyerTracked.add(currBuyer);
-                        currBuyerPerformance = new Performance(currBuyer);
-                        buyerPerformance[buyerTracked.size()-1] = currBuyerPerformance;
+                }
+                else{
+                    copyData();
+                    buyerTracked.add(currBuyer);
+                    currBuyerPerformance = new Performance(currBuyer);
+                    buyerPerformance[buyerTracked.size()-1] = currBuyerPerformance;
+                }
+                if(currVendor.contains("BUC")){
+                    continue;
+                }
+                if(currBuyer.contains("Mark") && currPromiseDate.equals("19900101") && !currCurrency.equals("RMB")){
+                    if(currBuyerPerformance != null) {
+                        currBuyerPerformance.goodPromiseDateAdd();
                     }
-                    if(currVendor.contains("BUC")){
-                        continue;
+                    totalPerformance.goodPromiseDateAdd();
+                    jxl.write.Label remarkkCell = new jxl.write.Label(remarkClnIdx, i, "Promise Date OK", goodFormat);
+                    currDataSheetW.addCell(remarkkCell);
+                    continue;
+                }
+                if(currVendor.contains("BRANSON") || currVendor.contains("EMERSON") || currPromiseDate.equals("20150909")
+                        || currVendor.contains("法埃龙") || currVendor.contains("惠恩") ||
+                        (currVendor.contains("必能信") && currVendor.contains("东莞"))){
+                    if(currBuyerPerformance != null) {
+                        currBuyerPerformance.goodPromiseDateAdd();
                     }
-                    if(currBuyer.contains("Mark") && currPromiseDate.equals("19900101") && !currCurrency.equals("RMB")){
-                        if(currBuyerPerformance != null) {
-                            currBuyerPerformance.goodPromiseDateAdd();
-                        }
-                        totalPerformance.goodPromiseDateAdd();
-                        jxl.write.Label remarkkCell = new jxl.write.Label(remarkClnIdx, i, "Promise Date OK", goodFormat);
-                        currDataSheetW.addCell(remarkkCell);
-                        continue;
+                    totalPerformance.goodPromiseDateAdd();
+                    jxl.write.Label remarkCell = new jxl.write.Label(remarkClnIdx, i, "Promise Date OK", goodFormat);
+                    currDataSheetW.addCell(remarkCell);
+                }
+                else if(myFormat.parse(currPromiseDate).getTime() >= myFormat.parse(todayDate).getTime()){
+                    if(currBuyerPerformance != null) {
+                        currBuyerPerformance.goodPromiseDateAdd();
                     }
-                    if(currVendor.contains("BRANSON") || currVendor.contains("EMERSON") || currPromiseDate.equals("20150909")
-                            || currVendor.contains("法埃龙") || currVendor.contains("惠恩") ||
-                            (currVendor.contains("必能信") && currVendor.contains("东莞"))){
+                    totalPerformance.goodPromiseDateAdd();
+                    jxl.write.Label remarkCell = new jxl.write.Label(remarkClnIdx, i, "Promise Date OK", goodFormat);
+                    currDataSheetW.addCell(remarkCell);
+                }
+                else if(currPromiseDate.equals("19900101")){
+                    if(myFormat.parse(currOrderDate).getTime() >= myFormat.parse(threeDaysBef).getTime()){
                         if(currBuyerPerformance != null) {
                             currBuyerPerformance.goodPromiseDateAdd();
                         }
@@ -456,61 +589,27 @@ public class Eavluator {
                         jxl.write.Label remarkCell = new jxl.write.Label(remarkClnIdx, i, "Promise Date OK", goodFormat);
                         currDataSheetW.addCell(remarkCell);
                     }
-                    else if(myFormat.parse(currPromiseDate).getTime() >= myFormat.parse(todayDate).getTime()){
-                        if(currBuyerPerformance != null) {
-                            currBuyerPerformance.goodPromiseDateAdd();
-                        }
-                        totalPerformance.goodPromiseDateAdd();
-                        jxl.write.Label remarkCell = new jxl.write.Label(remarkClnIdx, i, "Promise Date OK", goodFormat);
-                        currDataSheetW.addCell(remarkCell);
-                    }
-                    else if(currPromiseDate.equals("19900101")){
-                        if(myFormat.parse(currOrderDate).getTime() >= myFormat.parse(threeDaysBef).getTime()){
-                            if(currBuyerPerformance != null) {
-                                currBuyerPerformance.goodPromiseDateAdd();
-                            }
-                            totalPerformance.goodPromiseDateAdd();
-                            jxl.write.Label remarkCell = new jxl.write.Label(remarkClnIdx, i, "Promise Date OK", goodFormat);
-                            currDataSheetW.addCell(remarkCell);
-                        }
-                        else{
-                            if(currBuyerPerformance != null) {
-                                currBuyerPerformance.nonePromiseDateAdd();
-                            }
-                            totalPerformance.nonePromiseDateAdd();
-                            jxl.write.Label remarkCell = new jxl.write.Label(remarkClnIdx, i, "Promise Date Missed", noneFormat);
-                            currDataSheetW.addCell(remarkCell);
-                        }
-                    }
                     else{
                         if(currBuyerPerformance != null) {
-                            currBuyerPerformance.expiredPromiseDateAdd();
+                            currBuyerPerformance.nonePromiseDateAdd();
                         }
-                        totalPerformance.expiredPromiseDateAdd();
-                        jxl.write.Label remarkCell = new jxl.write.Label(remarkClnIdx, i, "Promise Date Expired", expiredFormat);
+                        totalPerformance.nonePromiseDateAdd();
+                        jxl.write.Label remarkCell = new jxl.write.Label(remarkClnIdx, i, "Promise Date Missed", noneFormat);
                         currDataSheetW.addCell(remarkCell);
                     }
                 }
+                else{
+                    if(currBuyerPerformance != null) {
+                        currBuyerPerformance.expiredPromiseDateAdd();
+                    }
+                    totalPerformance.expiredPromiseDateAdd();
+                    jxl.write.Label remarkCell = new jxl.write.Label(remarkClnIdx, i, "Promise Date Expired", expiredFormat);
+                    currDataSheetW.addCell(remarkCell);
+                }
             }
-            wwb.write();
-            wwb.close();
-//        }
-//        catch (FileNotFoundException e){
-//            System.out.println("Err: 0, Sorry! File is not found, or is opened right now.");
-//            exit(1);
-//        }
-//        catch(BiffException e){
-//            System.out.println("ERR: 1, " + e.toString());
-//        }
-//        catch(IOException e){
-//            System.out.println("Err: 2, " + e.toString());
-//        }
-//        catch(ParseException e){
-//            System.out.println("Err: 3, " + e.toString());
-//        }
-//        catch(WriteException e){
-//            System.out.println("Err: 4, Unable to write to file.");
-//        }
+        }
+        wwb.write();
+        wwb.close();
     }
 
     private static void outputData(){
