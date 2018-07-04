@@ -353,7 +353,7 @@ public class Eavluator {
                     endPlotDate = datePeriod.substring(9, 17);
                     System.out.println("StartDate: " + startPlotDate);
                     System.out.println("endDate: " + endPlotDate);
-                    if(Long.parseLong(startPlotDate) < Long.parseLong(endPlotDate) && Long.parseLong(endPlotDate) < Long.parseLong(actualTodayDate)){
+                    if(Long.parseLong(startPlotDate) < Long.parseLong(endPlotDate) && Long.parseLong(endPlotDate) <= Long.parseLong(actualTodayDate)){
                         break;
                     }
                     else{
