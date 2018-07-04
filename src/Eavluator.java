@@ -32,7 +32,7 @@ public class Eavluator {
     private static Queue<String> buyerTracked = new LinkedList<>();
     private static Performance[] buyerPerformance = new Performance[2];
     private static Performance totalPerformance = new Performance("Total");
-    private static String todayDate;
+    public static String todayDate;
     private static String threeDaysBef;
     private static String startPlotDate;
     private static String endPlotDate;
@@ -49,6 +49,7 @@ public class Eavluator {
     private static Queue<String> dateQueue = new LinkedList<>();
 
     private static int count = 0;
+
     public static void main(String[] args){
         actualTodayDate = getTodayDate();
         initializeFormat();
@@ -95,7 +96,7 @@ public class Eavluator {
         return myFormat.format(dateToCal);
     }
 
-    private static void generatePlot() throws Exception{
+    public static void generatePlot() throws Exception{
         initializeFormat();
         setBorders(true);
         getAllDate();
@@ -318,9 +319,9 @@ public class Eavluator {
                             "Warning",JOptionPane.WARNING_MESSAGE);
                 }
                 else if(todayDate.charAt(0) == '%'){
-                    startMultipleGeneration(todayDate.substring(1, 9), todayDate.substring(10));
-                    JOptionPane.showMessageDialog(null,"Table generated successfully","Progress",
-                            JOptionPane.WARNING_MESSAGE);
+                    Runnable tableGeneration = new MyRunnable();
+                    Thread thread1 = new Thread(tableGeneration);
+                    thread1.start();
                 }
                 else if(todayDate.length() != 8 ||
                         (Integer.parseInt(todayDate.substring(0, 3)) > 2010 && Integer.parseInt(todayDate.substring(0, 3)) < 2015) ||
@@ -359,22 +360,14 @@ public class Eavluator {
                         datePeriod = JOptionPane.showInputDialog("Date period format wrong, please enter again\n(YYYYMMDD-YYYYMMDD)");
                     }
                 }
-                try {
-                    generatePlot();
-                    JOptionPane.showMessageDialog(null,"Plot generated successfully","Progress",
-                            JOptionPane.WARNING_MESSAGE);
-                }
-                catch (Exception el){
-                    System.out.println("Error: " + el);
-                    JOptionPane.showMessageDialog(null,"Error: "+ el +
-                                    "\nPlease ensure all files existed in the required folder, and remain closed when the program is running. Please run the program again.","Progress",
-                            JOptionPane.WARNING_MESSAGE);
-                }
+                Runnable generatePlotThread = new MyRunnable2();
+                Thread thread1 = new Thread(generatePlotThread);
+                thread1.start();
             }
         });
     }
 
-    private static void startMultipleGeneration(String startDate, String endDate){
+    public static void startMultipleGeneration(String startDate, String endDate){
         todayDate = startDate;
         while(!todayDate.equals(dateAddition(endDate, 1))){
             try {
@@ -396,7 +389,7 @@ public class Eavluator {
         while(true){
             dateQueue.add(currDate);
             currDate = dateAddition(currDate, 7);
-            if(currDate.equals(endPlotDate)){
+            if(currDate.equals(endPlotDate)|| Long.parseLong(currDate) > Long.parseLong(endPlotDate)){
                 dateQueue.add(currDate);
                 break;
             }
