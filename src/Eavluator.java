@@ -26,6 +26,7 @@ import org.jfree.chart.title.LegendTitle;
 import org.jfree.data.category.DefaultCategoryDataset;
 import org.jfree.chart.plot.CategoryPlot;
 import org.jfree.chart.renderer.category.LineAndShapeRenderer;
+import org.jfree.ui.RectangleEdge;
 
 public class Eavluator {
     private static SimpleDateFormat myFormat = new SimpleDateFormat("yyyyMMdd");
@@ -52,6 +53,7 @@ public class Eavluator {
     private static Queue<String> datePlotQueue;
     private static String[] dateArr;
     private static String[] buyersArr;
+    private static ArrayList<Integer> removeIdx = new ArrayList<>();
 
     private static int count = 0;
 
@@ -280,8 +282,9 @@ public class Eavluator {
                 jxl.write.Label goodPromisePercent = new jxl.write.Label(currCol, i+2, ""+goodPercent+"%", currFormat);
                 mySheet.addCell(goodPromisePercent);
                 dataSet.setValue(currPlotData.getGoodPercent(), currData.getName(), "W " + String.valueOf(calendar.get(Calendar.WEEK_OF_YEAR)));
-                expireDataSet.setValue(expiredNum, currPlotData.getDate(), currData.getName());
-                missedDataSet.setValue(missedNum, currPlotData.getDate(), currData.getName());
+                String formattedName = currData.getName().substring(currData.getName().indexOf(' ')+1, currData.getName().indexOf(' ')+2).toUpperCase()+currData.getName().substring(currData.getName().indexOf(' ')+2).toLowerCase();
+                expireDataSet.setValue(expiredNum, currPlotData.getDate(), formattedName);
+                missedDataSet.setValue(missedNum, currPlotData.getDate(), formattedName);
             }
         }
         for(int i = 0; i < dateArr.length; i++){
@@ -315,11 +318,16 @@ public class Eavluator {
     }
 
     private static void setPlotFormat(JFreeChart myChart, double yAxisInt, boolean isPercent){
+        myChart.removeLegend();
         CategoryPlot plot = (CategoryPlot) myChart.getPlot();
         plot.setBackgroundAlpha(0.5f);
         plot.setForegroundAlpha(0.5f);
         CategoryAxis domainAxis = plot.getDomainAxis();
         ValueAxis rAxis = plot.getRangeAxis();
+        LegendTitle legendTitle = new LegendTitle(plot);
+        legendTitle.setPosition(RectangleEdge.TOP);
+        legendTitle.setItemFont(new Font("Arial", Font.BOLD, 16));
+        myChart.addLegend(legendTitle);
         if(isPercent) {
             LineAndShapeRenderer renderer = (LineAndShapeRenderer) plot.getRenderer();
             renderer.setBaseShapesVisible(true);
@@ -327,13 +335,20 @@ public class Eavluator {
             renderer.setUseSeriesOffset(true);
         }
         else{
+            plot.setBackgroundAlpha(0.0f);
+            plot.setForegroundAlpha(1.0f);
             BarRenderer render = (BarRenderer) plot.getRenderer();
             render.setItemMargin(0.0);
-            domainAxis.setCategoryLabelPositions(CategoryLabelPositions.UP_45);
+            render.setSeriesPaint(0, Color.decode("#8DB6CD"));
+            render.setSeriesPaint(1, Color.decode("#8C8C8C"));
+            render.setSeriesPaint(2, Color.decode("#8B636C"));
+            render.setSeriesPaint(3, Color.decode("#9BCD9B"));
+            render.setSeriesPaint(4, Color.decode("#CD950C"));
+            //domainAxis.setCategoryLabelPositions(CategoryLabelPositions.UP_45);
             plot.setRangeGridlinePaint(Color.black);
             plot.setRangeGridlinesVisible(true);
         }
-        domainAxis.setTickLabelFont(new Font("Arial", Font.BOLD, 20));
+        domainAxis.setTickLabelFont(new Font("Arial", Font.BOLD, 15));
         rAxis.setTickLabelFont(new Font("Arial", Font.PLAIN, 18));
 //        renderer.setBaseItemLabelGenerator(new StandardXYItemLabelGenerator("{2}",NumberFormat.getPercentInstance(),
 //                                NumberFormat.getPercentInstance()));
@@ -633,6 +648,7 @@ public class Eavluator {
         Workbook wb = Workbook.getWorkbook(is);
         WritableWorkbook wwb = Workbook.createWorkbook(poData, wb);
         Queue<Sheet> dataSheets = getSheetNum(wb);
+        int removeLineCnt = 0;
         while(!dataSheets.isEmpty()){
             Sheet currDataSheet = dataSheets.poll();
             WritableSheet currDataSheetW = wwb.getSheet(currDataSheet.getName());
@@ -648,6 +664,12 @@ public class Eavluator {
             currDataSheetW.addCell(remarkTitle);
             int rowNum = currDataSheet.getRows();
             for(int i = 1; i < rowNum; i++){
+                String currVendor = currDataSheet.getCell(vendorClnIdx, i).getContents().toUpperCase();
+                if(currVendor.contains("BUC")){
+                    removeIdx.add(i);
+                    removeLineCnt++;
+                    continue;
+                }
                 String currBuyer = currDataSheet.getCell(buyerClnIdx, i).getContents();
                 DateCell currOrderDateCell = (DateCell) currDataSheet.getCell(orderDateClnIdx, i);
                 Date currOrderDate_temp = currOrderDateCell.getDate();
@@ -658,7 +680,6 @@ public class Eavluator {
                     Date currPromiseDate_temp = new Date(currPromiseDateCell.getDate().getTime()-8*60*60*1000L);
                     currPromiseDate = myFormat.format(currPromiseDate_temp);
                 }
-                String currVendor = currDataSheet.getCell(vendorClnIdx, i).getContents().toUpperCase();
                 String currCurrency = currDataSheet.getCell(currencyClnIdx, i).getContents().toUpperCase();
                 Performance currBuyerPerformance = null;
                 if(buyerTracked.contains(currBuyer)){
@@ -674,9 +695,6 @@ public class Eavluator {
                     currBuyerPerformance = new Performance(currBuyer);
                     buyerPerformance[buyerTracked.size()-1] = currBuyerPerformance;
                 }
-                if(currVendor.contains("BUC")){
-                    continue;
-                }
                 if(currBuyer.contains("Mark") && currPromiseDate.equals("19900101") && !currCurrency.equals("RMB")){
                     if(currBuyerPerformance != null) {
                         currBuyerPerformance.goodPromiseDateAdd();
@@ -687,8 +705,8 @@ public class Eavluator {
                     continue;
                 }
                 if(currVendor.contains("BRANSON") || currVendor.contains("EMERSON") || currPromiseDate.equals("20150909")
-                        || currVendor.contains("æ³•åŸƒé¾™") || currVendor.contains("æƒ æ©") ||
-                        (currVendor.contains("å¿…èƒ½ä¿¡") && currVendor.contains("ä¸œèŽž"))){
+                        || currVendor.contains("·¨°£Áú") || currVendor.contains("»Ý¶÷") ||
+                        (currVendor.contains("±ØÄÜÐÅ") && currVendor.contains("¶«Ý¸"))){
                     if(currBuyerPerformance != null) {
                         currBuyerPerformance.goodPromiseDateAdd();
                     }
@@ -730,6 +748,11 @@ public class Eavluator {
                     jxl.write.Label remarkCell = new jxl.write.Label(remarkClnIdx, i, "Promise Date Expired", expiredFormat);
                     currDataSheetW.addCell(remarkCell);
                 }
+            }
+            System.out.println("Remove line count: " + removeLineCnt);
+            for(int i = 0; i < removeIdx.size(); i++){
+                System.out.println(removeIdx.get(i));
+                currDataSheetW.removeRow(removeIdx.get(i)-i);
             }
         }
         wwb.write();
